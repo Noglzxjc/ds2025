@@ -9,7 +9,28 @@
 
 #define SIZE 1024
 
+void write_file(int sockfd){
+    int n;
+    FILE *fp;
+    char *filename = "textfile.txt";
+    char buffer[SIZE];
 
+    fp = fopen(filename, "w");
+    if(fp == NULL){
+        perror("Error in creating file");
+        exit(1);
+    }
+    while(1){
+        n = recv(sockfd, buffer, SIZE, 0);
+        if(n <= 0){
+            break;
+            return;
+        }
+        fprintf(fp, "%s", buffer);
+        bzero(buffer, SIZE);
+    }
+    return;
+}
 
 int main(){
     WSADATA wsaData; 
@@ -66,6 +87,9 @@ int main(){
 
     addr_size = sizeof(new_addr);
     new_sock = accept(sockfd, (struct sockaddr *)&new_addr, &addr_size);
+
+    write_file(new_sock);
+    printf("Data written in the file successfully\n");
 
     //dong winsock
     closesocket(new_sock);
