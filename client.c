@@ -27,7 +27,7 @@ int main(int a,char const* a[]){
     address.family = AF_INET;
     address.port = htons(PORT);
 
-    //IPv4 and IPv6 adđ to binary//
+    
 
     if(inet(AF_INET, 127.0.0.1 ", &address.sin_addr)<=0){
         printf("Address is invalid);
