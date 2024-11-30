@@ -1,0 +1,224 @@
+\documentclass[a4paper,12pt]{article}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{hyperref}
+
+\title{Socket Programming in C: Client-Server File Transfer}
+\author{Your Name}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+This report describes the implementation of a client-server program using TCP/IP socket programming in C. The client sends a file to the server, and the server receives the file and saves it locally. The program makes use of the Winsock API for Windows to establish communication between the client and server.
+
+\section{List of Functions Used}
+Below is a list of functions used in both client and server programs, along with a brief description of each function.
+
+\subsection{Client Functions}
+
+\begin{itemize}
+    \item \texttt{socket()} - Creates a socket to establish a communication endpoint.
+    \item \texttt{setsockopt()} - Sets the options for the socket (e.g., SO\_REUSEADDR to allow address reuse).
+    \item \texttt{connect()} - Establishes a connection to the server using the provided address and port.
+    \item \texttt{send()} - Sends data from the client to the server over the established socket connection.
+    \item \texttt{memset()} - Clears the buffer after sending data to avoid leftover data from previous transmissions.
+    \item \texttt{perror()} - Prints the error message if the function fails.
+    \item \texttt{fopen()} - Opens a file to be read for sending data.
+    \item \texttt{fclose()} - Closes the opened file after sending its contents.
+    \item \texttt{WSAStartup()} - Initializes the Winsock library for network communication.
+    \item \texttt{WSACleanup()} - Cleans up and closes all Winsock resources.
+\end{itemize}
+
+\subsection{Server Functions}
+
+\begin{itemize}
+    \item \texttt{socket()} - Creates a socket for the server to listen for incoming connections from clients.
+    \item \texttt{bind()} - Binds the socket to a specific IP address and port, allowing the server to listen for client connections.
+    \item \texttt{listen()} - Puts the server socket in a passive mode, waiting for incoming connection requests from clients.
+    \item \texttt{accept()} - Accepts an incoming connection request from a client and creates a new socket for communication.
+    \item \texttt{recv()} - Receives data sent by the client over the socket.
+    \item \texttt{memset()} - Clears the buffer after receiving data to ensure the data is fresh for the next reception.
+    \item \texttt{perror()} - Prints an error message in case of failures.
+    \item \texttt{fopen()} - Opens a file to save the received data from the client.
+    \item \texttt{fclose()} - Closes the file after saving the received data.
+    \item \texttt{WSAStartup()} - Initializes Winsock for network communication.
+    \item \texttt{WSACleanup()} - Cleans up and closes all Winsock resources after the server finishes its tasks.
+\end{itemize}
+
+\section{Client Code Description}
+The client program performs the following actions:
+\begin{itemize}
+    \item Initializes Winsock.
+    \item Creates a socket using \texttt{socket()}.
+    \item Connects to the server using \texttt{connect()}.
+    \item Reads a file and sends its content to the server in chunks using \texttt{send()}.
+    \item Closes the file and socket when done.
+\end{itemize}
+
+\section{Server Code Description}
+The server program performs the following actions:
+\begin{itemize}
+    \item Initializes Winsock.
+    \item Creates a socket and binds it to a specific address and port using \texttt{bind()}.
+    \item Listens for incoming connections using \texttt{listen()}.
+    \item Accepts a connection from the client using \texttt{accept()}.
+    \item Receives data sent by the client using \texttt{recv()} and writes it to a file.
+    \item Closes the file and socket after receiving all data.
+\end{itemize}
+
+\section{Code Example}
+
+\subsection{Client Code}
+\begin{verbatim}
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ws2tcpip.h>
+#include <winsock2.h>
+
+#define SIZE 1024
+
+void send_file(FILE *fp, int sockfd){
+    char data[SIZE] = {0};
+    while(fgets(data, SIZE, fp) != NULL){
+        if(send(sockfd, data, sizeof(data), 0) == -1){
+            perror("Error Sending");
+            exit(1);
+        }
+        memset(data, 0, SIZE);
+    }
+}
+
+int main(){
+    WSADATA wsaData; 
+    char *ip = "127.0.0.1";
+    int port = 8000;
+    int sockfd;
+    struct sockaddr_in server_addr;
+    FILE *fp;
+    char *filename = "textfile.txt"; 
+
+    if(WSAStartup(MAKEWORD(2, 2), &wsaData) != 0){
+        printf("WSAStartup failed.\n");
+        return 1;
+    }
+
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd == 0){
+        perror("Error");
+        exit(1);
+    }
+    printf("Socket created\n");
+
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(port);
+    server_addr.sin_addr.s_addr = inet_addr(ip);
+
+    if(connect(sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr)) == -1){
+        perror("Connect failed");
+        exit(1);
+    }
+
+    fp = fopen(filename, "r");
+    if(fp == NULL){
+        perror("Error opening file");
+        exit(1);
+    }
+
+    send_file(fp, sockfd);
+    printf("File sent successfully.\n");
+
+    fclose(fp);
+    closesocket(sockfd);
+    WSACleanup();
+}
+\end{verbatim}
+
+\subsection{Server Code}
+\begin{verbatim}
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ws2tcpip.h>
+#include <winsock2.h>
+
+#define SIZE 1024
+
+void write_file(int sockfd){
+    int n;
+    FILE *fp;
+    char *filename = "receivedfile.txt";
+    char buffer[SIZE];
+
+    fp = fopen(filename, "w");
+    if(fp == NULL){
+        perror("Error in creating file");
+        exit(1);
+    }
+
+    while(1){
+        n = recv(sockfd, buffer, SIZE, 0);
+        if(n <= 0){
+            break;
+        }
+        fprintf(fp, "%s", buffer);
+        memset(buffer, 0, SIZE);
+    }
+    fclose(fp);
+}
+
+int main(){
+    WSADATA wsaData; 
+    int sockfd, new_sock;
+    struct sockaddr_in server_addr, new_addr;
+    socklen_t addr_size;
+
+    if(WSAStartup(MAKEWORD(2, 2), &wsaData) != 0){
+        printf("WSAStartup failed.\n");
+        return 1;
+    }
+
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd == -1){
+        perror("Error");
+        exit(1);
+    }
+    printf("Socket created\n");
+
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(8000);
+    server_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+
+    if(bind(sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr)) == -1){
+        perror("Bind failed");
+        exit(1);
+    }
+    printf("Bind done\n");
+
+    listen(sockfd, 10);
+    printf("Listening...\n");
+
+    addr_size = sizeof(new_addr);
+    new_sock = accept(sockfd, (struct sockaddr *)&new_addr, &addr_size);
+    if(new_sock == -1){
+        perror("Accept failed");
+        exit(1);
+    }
+    printf("Connection accepted\n");
+
+    write_file(new_sock);
+    printf("Data written in the file successfully.\n");
+
+    closesocket(new_sock);
+    closesocket(sockfd);
+    WSACleanup();
+}
+\end{verbatim}
+
+\section{Conclusion}
+In this report, we have successfully implemented a client-server file transfer application using TCP/IP sockets in C. The client sends a file to the server, and the server saves the received data into a new file. This exercise demonstrates the basic principles of network programming and socket communication.
+
+\end{document}

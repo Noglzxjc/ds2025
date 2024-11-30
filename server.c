@@ -12,7 +12,7 @@
 void write_file(int sockfd){
     int n;
     FILE *fp;
-    char *filename = "textfile.txt";
+    char *filename = "textfile2.txt";
     char buffer[SIZE];
 
     fp = fopen(filename, "w");
@@ -22,14 +22,18 @@ void write_file(int sockfd){
     }
     while(1){
         n = recv(sockfd, buffer, SIZE, 0);
-        if(n <= 0){
+        if (n <= 0) {
+            if (n == 0)
+                printf("Client disconnected.\n");
+            else
+                perror("Error receiving data");
             break;
-            return;
         }
+        printf("Received data: %s\n", buffer); 
         fprintf(fp, "%s", buffer);
         bzero(buffer, SIZE);
     }
-    return;
+    fclose(fp);
 }
 
 int main(){
@@ -45,7 +49,6 @@ int main(){
     struct sockaddr_in new_addr;
     socklen_t addr_size;
 
-    char buffer[SIZE] = {0};
 
     if(WSAStartup(MAKEWORD(2, 2), &wsaData) != 0){
         printf("WSAStartup failed.\n");
@@ -54,25 +57,25 @@ int main(){
 
     //tạo socket
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd == 0){
+    if (sockfd == -1){
         perror("Error");
         exit(1);
     }
     printf("Socket created\n");
-
 
     //dịa chỉ server
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(port);
     server_addr.sin_addr.s_addr = inet_addr(ip);
 
-    //gán địa chỉ cho socket
-    e=bind(sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr));
-    if(e<0){
-        perror("Error in Binding");
+    //bind socket
+    if (bind(sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr)) == -1){
+        perror("Bind failed");
         exit(1);
     }
-    printf("Binding done\n");
+    printf("Bind done\n");
+
+    
 
     //Listening
     e=listen(sockfd, 10);
@@ -84,9 +87,14 @@ int main(){
     exit(1);
     }
 
-
+    //Accept
     addr_size = sizeof(new_addr);
     new_sock = accept(sockfd, (struct sockaddr *)&new_addr, &addr_size);
+    if(new_sock==-1){
+        perror("Accept failed");
+        exit(1);
+    }printf("Connection accept\n");
+
 
     write_file(new_sock);
     printf("Data written in the file successfully\n");

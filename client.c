@@ -36,7 +36,7 @@ void send_file(FILE *fp, int sockfd){
         char data[SIZE] = {0};
         while(fgets(data, SIZE, fp) != NULL){
             if(send(sockfd, data, sizeof(data), 0) == -1){
-                perror("Error Sending");
+                print_winsock_error();
                 exit(1);
             }
             memset(data, 0, SIZE);
@@ -69,16 +69,15 @@ int main(){
     }
     printf("Socket created\n");
 
-
     //dịa chỉ server
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(port);
     server_addr.sin_addr.s_addr = inet_addr(ip);
+    
 
     //kết nối tơi server
     e=connect(sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr));
     if(e==-1){
-        perror("Connect failed");
         print_winsock_error();
         exit(1);
     }printf("Connected successful\n");
