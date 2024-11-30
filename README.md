@@ -11,4 +11,4 @@ Student Info
 
 * Student Name: Phan Đăng Nhân
 * Student ID: BI12-336
-* Student Group ID: Not-for-now
+* Student Group ID: 14
